@@ -18,6 +18,7 @@ def deform_conv2d(
     padding: Tuple[int, int] = (0, 0),
     dilation: Tuple[int, int] = (1, 1),
     mask: Optional[Tensor] = None,
+    offset_multiplier: Optional[int] = 2,
 ) -> Tensor:
     r"""
     Performs Deformable Convolution v2, described in
@@ -42,6 +43,7 @@ def deform_conv2d(
         mask (Tensor[batch_size, offset_groups * kernel_height * kernel_width,
             out_height, out_width]): masks to be applied for each position in the
             convolution kernel. Default: None
+        offset_multiplier (int): the number to use when calculating offset groups from offset size. Default: 2
 
     Returns:
         output (Tensor[batch_sz, out_channels, out_h, out_w]): result of convolution
@@ -79,15 +81,15 @@ def deform_conv2d(
     weights_h, weights_w = weight.shape[-2:]
     _, n_in_channels, in_h, in_w = input.shape
 
-    n_offset_grps = offset.shape[1] // (2 * weights_h * weights_w)
+    n_offset_grps = offset.shape[1] // (offset_multiplier * weights_h * weights_w)
     n_weight_grps = n_in_channels // weight.shape[1]
 
     if n_offset_grps == 0:
         raise RuntimeError(
             "the shape of the offset tensor at dimension 1 is not valid. It should "
-            "be a multiple of 2 * weight.size[2] * weight.size[3].\n"
-            "Got offset.shape[1]={}, while 2 * weight.size[2] * weight.size[3]={}".format(
-                offset.shape[1], 2 * weights_h * weights_w))
+            "be a multiple of offset_multiplier * weight.size[2] * weight.size[3].\n"
+            "Got offset.shape[1]={}, while {} * weight.size[2] * weight.size[3]={}".format(
+                offset.shape[1], offset_multiplier, offset_multiplier * weights_h * weights_w))
 
     return torch.ops.torchvision.deform_conv2d(
         input,
